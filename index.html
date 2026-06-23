@@ -18,6 +18,11 @@
 
       <main>
         <section id="view-home" class="view active">
+          <section class="today-strip">
+            <span>今日日期</span>
+            <strong id="homeDateText">--</strong>
+          </section>
+
           <div class="target-panel">
             <div class="panel-head">
               <div>
@@ -30,6 +35,7 @@
                 <option value="high">高碳日</option>
               </select>
             </div>
+            <p class="target-source" id="targetSourceText">使用默认目标</p>
             <div class="macro-grid" id="homeSummary"></div>
           </div>
 
@@ -43,10 +49,27 @@
               <strong id="homeTrainingType">未记录</strong>
             </button>
           </div>
+          <button class="secondary-btn share-btn" id="shareTodayBtn" type="button">分享今日</button>
 
           <section class="section">
             <div class="section-title">
-              <h2>今日差距</h2>
+              <h2>最近食物</h2>
+              <span>快速填入</span>
+            </div>
+            <div class="shortcut-row" id="homeRecentFoods"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <h2>最近动作</h2>
+              <span>一键继续</span>
+            </div>
+            <div class="shortcut-row" id="homeRecentExercises"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <h2>剩余摄入</h2>
               <span id="homeGapHint"></span>
             </div>
             <div class="gap-list" id="homeGaps"></div>
@@ -60,15 +83,33 @@
               <span id="foodTotalHint">0 kcal</span>
             </div>
             <div class="meal-tabs" id="mealTabs"></div>
+            <div class="library-block">
+              <div class="mini-title">我的收藏</div>
+              <div class="shortcut-row" id="favoriteFoods"></div>
+              <div class="mini-title">最近使用</div>
+              <div class="shortcut-row" id="recentFoods"></div>
+              <div class="mini-title">常用食物</div>
+              <div class="shortcut-row" id="commonFoods"></div>
+            </div>
             <form id="foodForm" class="form-card">
-              <input id="foodName" type="text" placeholder="食物名称" autocomplete="off" required />
+              <input id="foodName" type="text" placeholder="食物名称，例如 鸡胸肉" autocomplete="off" list="foodSuggestions" required />
+              <datalist id="foodSuggestions"></datalist>
+              <div class="food-match" id="foodMatchHint">输入食物名称和重量后自动计算</div>
+              <label>重量 g<input id="foodWeight" type="number" inputmode="decimal" min="0" step="1" placeholder="例如 150" /></label>
               <div class="input-grid">
                 <label>碳水 g<input id="foodCarbs" type="number" inputmode="decimal" min="0" step="0.1" /></label>
                 <label>蛋白 g<input id="foodProtein" type="number" inputmode="decimal" min="0" step="0.1" /></label>
                 <label>脂肪 g<input id="foodFat" type="number" inputmode="decimal" min="0" step="0.1" /></label>
                 <label>热量 kcal<input id="foodCalories" type="number" inputmode="decimal" min="0" step="1" /></label>
               </div>
-              <button class="primary-btn" type="submit">添加到当前餐</button>
+              <label class="check-row">
+                <input id="saveCustomFood" type="checkbox" />
+                <span>保存为常用食物</span>
+              </label>
+              <div class="form-actions">
+                <button class="secondary-btn hidden" id="cancelFoodEdit" type="button">取消编辑</button>
+                <button class="primary-btn" id="foodSubmitBtn" type="submit">添加到当前餐</button>
+              </div>
             </form>
           </section>
           <section class="section meal-list" id="mealLists"></section>
@@ -92,6 +133,14 @@
                 <option>休息</option>
               </select>
             </label>
+            <div class="library-block">
+              <div class="mini-title">训练模板</div>
+              <div class="shortcut-row" id="trainingTemplates"></div>
+              <div class="mini-title">推荐动作</div>
+              <div class="shortcut-row" id="recommendedExercises"></div>
+              <div class="mini-title">最近训练动作</div>
+              <div class="shortcut-row" id="recentExercises"></div>
+            </div>
             <form id="exerciseForm" class="form-card">
               <input id="exerciseName" type="text" placeholder="动作名称" autocomplete="off" required />
               <div class="input-grid three">
@@ -126,6 +175,56 @@
             <div class="dashboard-grid" id="dashboardCards"></div>
           </section>
         </section>
+
+        <section id="view-settings" class="view">
+          <section class="section">
+            <div class="section-title">
+              <h2>个人目标设置</h2>
+              <span id="profileStatus">未设置</span>
+            </div>
+            <form id="profileForm" class="form-card">
+              <label>性别
+                <select id="profileGender" class="select wide">
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                </select>
+              </label>
+              <div class="input-grid">
+                <label>身高 cm<input id="profileHeight" type="number" inputmode="decimal" min="0" step="1" /></label>
+                <label>体重 kg<input id="profileWeight" type="number" inputmode="decimal" min="0" step="0.1" /></label>
+              </div>
+              <label>训练频率
+                <select id="profileActivity" class="select wide">
+                  <option value="0-1">每周运动 0-1 小时</option>
+                  <option value="2-3">每周运动 2-3 小时</option>
+                  <option value="4-5">每周运动 4-5 小时</option>
+                  <option value="6+">每周运动 6 小时以上</option>
+                </select>
+              </label>
+              <label>目标
+                <select id="profileGoal" class="select wide">
+                  <option value="fat-loss">减脂</option>
+                  <option value="maintain">维持</option>
+                  <option value="muscle-gain">增肌</option>
+                </select>
+              </label>
+              <label>蛋白强度
+                <select id="profileProteinMode" class="select wide">
+                  <option value="standard">标准减脂：1.6g/kg</option>
+                  <option value="high">力量/高强度：1.8g/kg</option>
+                </select>
+              </label>
+              <button class="primary-btn" type="submit">保存并生成目标</button>
+            </form>
+          </section>
+          <section class="section">
+            <div class="section-title">
+              <h2>生成结果</h2>
+              <span>低 / 中 / 高碳</span>
+            </div>
+            <div class="dashboard-grid" id="targetPreview"></div>
+          </section>
+        </section>
       </main>
 
       <nav class="bottom-nav" aria-label="主导航">
@@ -133,8 +232,23 @@
         <button class="nav-btn" data-nav="food" type="button">饮食</button>
         <button class="nav-btn" data-nav="training" type="button">训练</button>
         <button class="nav-btn" data-nav="dashboard" type="button">看板</button>
+        <button class="nav-btn" data-nav="settings" type="button">设置</button>
       </nav>
     </div>
+    <dialog class="share-dialog" id="shareDialog">
+      <div class="share-content">
+        <div class="section-title">
+          <h2>分享今日</h2>
+          <span>文字版</span>
+        </div>
+        <textarea id="shareText" class="share-text" readonly></textarea>
+        <div class="form-actions">
+          <button class="primary-btn" id="copyShareText" type="button">复制文字</button>
+          <button class="secondary-btn" id="closeShareDialog" type="button">关闭</button>
+        </div>
+      </div>
+    </dialog>
+    <div class="toast hidden" id="toast">已复制，可发送给朋友</div>
     <script src="./app.js"></script>
   </body>
 </html>
