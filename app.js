@@ -40,6 +40,11 @@ const BASE_FOODS = [
   { name: "牛油果", calories: 160, carbs: 9, protein: 2, fat: 15, type: "水果" },
 ];
 
+const DEFAULT_FOODS = (window.FOOD_DATABASE || BASE_FOODS.map(normalizeLegacyFood)).map((food) => ({
+  ...food,
+  source: "default",
+}));
+
 const TRAINING_RECOMMENDATIONS = {
   背: ["引体向上", "高位下拉", "杠铃划船", "坐姿划船"],
   胸: ["卧推", "上斜卧推", "双杠臂屈伸", "绳索夹胸"],
@@ -118,6 +123,28 @@ function loadData() {
   }
 }
 
+function normalizeLegacyFood(food) {
+  return {
+    id: food.id || `custom-${food.name}`,
+    name: food.name,
+    brand: food.brand || "",
+    category: food.category || food.type || "其他",
+    unitType: food.unitType || "per100g",
+    servingSize: food.servingSize || "100g",
+    calories: parseNumber(food.calories),
+    carbs: parseNumber(food.carbs),
+    protein: parseNumber(food.protein),
+    fat: parseNumber(food.fat),
+    verified: food.verified ?? true,
+    note: food.note || "",
+    aliases: food.aliases || [],
+    defaultAmount: food.defaultAmount || food.defaultWeight || (food.unitType === "perServing" ? 1 : 100),
+    favorite: food.favorite || false,
+    useCount: food.useCount || 0,
+    lastUsed: food.lastUsed || "",
+  };
+}
+
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
 }
@@ -140,48 +167,122 @@ function getDay(date = state.activeDate) {
   return day;
 }
 
-function allFoods() {
+function getAllFoods() {
   const byName = new Map();
-  [...BASE_FOODS, ...state.data.customFoods].forEach((food) => byName.set(food.name, food));
+  DEFAULT_FOODS.forEach((food) => byName.set(foodKey(food), normalizeFoodWithHistory(food)));
+  state.data.customFoods.map(normalizeLegacyFood).forEach((food) => byName.set(foodKey(food), normalizeFoodWithHistory(food)));
   state.data.foodLibrary.forEach((food) => {
-    byName.set(food.name, {
-      name: food.name,
-      calories: food.calories,
-      carbs: food.carbs,
-      protein: food.protein,
-      fat: food.fat,
-      type: food.type || "其他",
-      defaultWeight: food.defaultWeight,
-      favorite: food.favorite,
-      useCount: food.useCount,
-      lastUsed: food.lastUsed,
+    const key = foodKey(food);
+    const existing = byName.get(key) || normalizeLegacyFood(food);
+    byName.set(key, {
+      ...existing,
+      defaultAmount: food.defaultAmount || food.defaultWeight || existing.defaultAmount,
+      favorite: food.favorite || false,
+      useCount: food.useCount || 0,
+      lastUsed: food.lastUsed || "",
     });
   });
   return [...byName.values()];
 }
 
+function foodKey(food) {
+  return food.id || `${food.brand || ""}|${food.name}`;
+}
+
+function allFoods() {
+  return getAllFoods();
+}
+
+function normalizeFoodWithHistory(food) {
+  const history = state.data.foodLibrary.find((item) => item.name === food.name);
+  return {
+    ...normalizeLegacyFood(food),
+    favorite: history?.favorite || food.favorite || false,
+    useCount: history?.useCount || food.useCount || 0,
+    lastUsed: history?.lastUsed || food.lastUsed || "",
+    defaultAmount: history?.defaultAmount || history?.defaultWeight || food.defaultAmount || food.defaultWeight || (food.unitType === "perServing" ? 1 : 100),
+  };
+}
+
 function findFood(name) {
   const keyword = name.trim();
   if (!keyword) return null;
-  return allFoods().find((food) => food.name === keyword) || null;
+  return getAllFoods().find((food) => food.name === keyword || food.aliases?.includes(keyword)) || null;
 }
 
 function searchFoods(keyword) {
   const text = keyword.trim();
-  if (!text) return allFoods().slice(0, 12);
-  return allFoods()
-    .filter((food) => food.name.includes(text) || food.type.includes(text))
-    .slice(0, 12);
+  const foods = getAllFoods();
+  const results = text
+    ? foods.filter((food) => foodMatches(food, text))
+    : foods.filter((food) => food.favorite || food.lastUsed).slice(0, 30);
+  return results.sort((a, b) => foodSearchScore(b, text) - foodSearchScore(a, text)).slice(0, 20);
 }
 
 function calculateFood(food, weight) {
-  const ratio = parseNumber(weight) / 100;
+  return calculateNutrition(food, weight);
+}
+
+function calculateNutrition(food, amount) {
+  const value = parseNumber(amount);
+  const ratio = food.unitType === "perServing" ? value : value / 100;
   return {
     calories: round(food.calories * ratio),
     carbs: round(food.carbs * ratio),
     protein: round(food.protein * ratio),
     fat: round(food.fat * ratio),
   };
+}
+
+function filterByCategory(category) {
+  return getAllFoods().filter((food) => food.category === category);
+}
+
+function addCustomFood(food) {
+  const normalized = normalizeLegacyFood({
+    ...food,
+    id: food.id || `custom-${Date.now()}`,
+    verified: food.verified ?? false,
+    note: food.note || "用户自定义食物",
+  });
+  state.data.customFoods = state.data.customFoods.filter((item) => item.name !== normalized.name);
+  state.data.customFoods.push(normalized);
+  saveData();
+}
+
+function saveRecentFood(food) {
+  const item = normalizeLegacyFood(food);
+  const existing = state.data.foodLibrary.find((saved) => saved.name === item.name);
+  state.data.foodLibrary = state.data.foodLibrary.filter((saved) => saved.name !== item.name);
+  state.data.foodLibrary.push({
+    ...item,
+    favorite: existing?.favorite || item.favorite || false,
+    useCount: (existing?.useCount || 0) + 1,
+    lastUsed: new Date().toISOString(),
+  });
+  saveData();
+}
+
+function toggleFavoriteFood(foodId) {
+  const food = getAllFoods().find((item) => item.id === foodId || item.name === foodId);
+  if (food) toggleFoodFavorite(food.name);
+}
+
+function foodMatches(food, keyword) {
+  return [food.name, food.brand, food.category, ...(food.aliases || [])].some((value) => String(value || "").includes(keyword));
+}
+
+function foodSearchScore(food, keyword) {
+  let score = 0;
+  if (food.favorite) score += 100000;
+  if (food.lastUsed) score += 50000;
+  score += (food.useCount || 0) * 100;
+  if (keyword && food.name === keyword) score += 10000;
+  if (keyword && food.name.includes(keyword)) score += 3000;
+  if (keyword && food.brand?.includes(keyword)) score += 2500;
+  if (keyword && food.category?.includes(keyword)) score += 1500;
+  if (food.source === "default") score += 10;
+  return score;
 }
 
 function getTargets() {
@@ -394,7 +495,10 @@ function byRecent(a, b) {
 }
 
 function foodRow(item, mealKey) {
-  const weight = item.weight ? `${round(item.weight)}g · ` : "";
+  const amountUnit = item.unitType === "perServing" ? "份" : "g";
+  const weight = item.weight ? `${round(item.weight)}${amountUnit} · ` : "";
+  const brand = item.brand ? `${escapeHtml(item.brand)} · ` : "";
+  const note = item.verified === false ? `<div class="record-note">${escapeHtml(item.note || "估算值，仅供记录参考")}</div>` : "";
   const favorite = state.data.foodLibrary.find((food) => food.name === item.name)?.favorite;
   return `
     <div class="record-item">
@@ -407,8 +511,9 @@ function foodRow(item, mealKey) {
         </div>
       </div>
       <div class="record-meta">
-        ${weight}${round(item.calories)} kcal · 碳 ${round(item.carbs)}g · 蛋白 ${round(item.protein)}g · 脂肪 ${round(item.fat)}g
+        ${brand}${weight}${round(item.calories)} kcal · 碳 ${round(item.carbs)}g · 蛋白 ${round(item.protein)}g · 脂肪 ${round(item.fat)}g
       </div>
+      ${note}
     </div>
   `;
 }
@@ -509,8 +614,26 @@ function renderSettings() {
 function renderFoodSuggestions() {
   const keyword = $("foodName").value || "";
   $("foodSuggestions").innerHTML = searchFoods(keyword)
-    .map((food) => `<option value="${escapeHtml(food.name)}">${food.type} · ${food.calories} kcal/100g</option>`)
+    .map((food) => `<option value="${escapeHtml(food.name)}">${foodOptionMeta(food)}</option>`)
     .join("");
+  $("foodSearchResults").innerHTML = searchFoods(keyword)
+    .slice(0, 8)
+    .map(
+      (food) => `
+        <button class="food-result" data-select-food="${escapeHtml(food.name)}" type="button">
+          <strong>${escapeHtml(food.name)}</strong>
+          <span>${escapeHtml(foodOptionMeta(food))}</span>
+        </button>
+      `
+    )
+    .join("");
+}
+
+function foodOptionMeta(food) {
+  const brand = food.brand ? `${food.brand} · ` : "";
+  const unit = food.unitType === "perServing" ? food.servingSize || "1份" : "100g";
+  const verified = food.verified ? "" : " · 估算";
+  return `${brand}${food.category} · ${food.calories} kcal/${unit}${verified}`;
 }
 
 function defaultProfile() {
@@ -554,10 +677,15 @@ function updateFoodByName() {
   const weight = parseNumber($("foodWeight").value);
   if (!food) {
     $("foodMatchHint").textContent = "没有匹配到内置食物，可手动填写";
+    $("foodAmountLabel").firstChild.textContent = "重量 g";
     return;
   }
 
-  $("foodMatchHint").textContent = `已匹配：${food.name}（${food.type}，每100g ${food.calories} kcal）`;
+  $("foodAmountLabel").firstChild.textContent = food.unitType === "perServing" ? "份数" : "重量 g";
+  $("foodWeight").placeholder = food.unitType === "perServing" ? "例如 1" : "例如 150";
+  $("foodMatchHint").textContent = food.verified
+    ? `已匹配：${food.name}（${foodOptionMeta(food)}）`
+    : `已匹配：${food.name}（${foodOptionMeta(food)}）。${food.note || "估算值，仅供记录参考"}`;
   if (weight) fillFoodMacros(calculateFood(food, weight));
 }
 
@@ -571,6 +699,7 @@ function fillFoodMacros(macros) {
 function clearFoodForm() {
   $("foodForm").reset();
   $("foodMatchHint").textContent = "输入食物名称和重量后自动计算";
+  $("foodAmountLabel").firstChild.textContent = "重量 g";
   state.editingFood = null;
   render();
 }
@@ -667,9 +796,17 @@ function showToast(message) {
 function buildFoodItem() {
   const name = $("foodName").value.trim();
   if (!name) return null;
+  const food = findFood(name);
   return {
     id: state.editingFood?.id || createId(),
     name,
+    brand: food?.brand || "",
+    category: food?.category || "其他",
+    foodId: food?.id || "",
+    unitType: food?.unitType || "per100g",
+    servingSize: food?.servingSize || "100g",
+    verified: food?.verified ?? false,
+    note: food?.note || "",
     weight: parseNumber($("foodWeight").value),
     carbs: parseNumber($("foodCarbs").value),
     protein: parseNumber($("foodProtein").value),
@@ -680,32 +817,44 @@ function buildFoodItem() {
 
 function saveCustomFoodIfNeeded(item) {
   if (!$("saveCustomFood").checked || !item.weight) return;
-  const ratio = 100 / item.weight;
+  const ratio = item.unitType === "perServing" ? 1 / item.weight : 100 / item.weight;
   const food = {
+    id: `custom-${Date.now()}`,
     name: item.name,
+    brand: item.brand || "",
+    category: item.category || "其他",
+    unitType: item.unitType || "per100g",
+    servingSize: item.unitType === "perServing" ? item.servingSize || "1份" : "100g",
     calories: round(item.calories * ratio),
     carbs: round(item.carbs * ratio),
     protein: round(item.protein * ratio),
     fat: round(item.fat * ratio),
-    type: "其他",
+    verified: false,
+    note: "用户自定义食物",
   };
-  state.data.customFoods = state.data.customFoods.filter((saved) => saved.name !== food.name);
-  state.data.customFoods.push(food);
+  addCustomFood(food);
 }
 
 function rememberFood(item) {
   if (!item.name || !item.weight) return;
   const matched = findFood(item.name);
-  const ratio = 100 / item.weight;
+  const ratio = item.unitType === "perServing" ? 1 / item.weight : 100 / item.weight;
   const existing = state.data.foodLibrary.find((food) => food.name === item.name);
   const saved = {
+    id: matched?.id || item.foodId || `recent-${item.name}`,
     name: item.name,
+    brand: matched?.brand || item.brand || "",
+    category: matched?.category || item.category || "其他",
+    unitType: matched?.unitType || item.unitType || "per100g",
+    servingSize: matched?.servingSize || item.servingSize || "100g",
+    defaultAmount: item.weight,
     defaultWeight: item.weight,
     calories: matched?.calories ?? round(item.calories * ratio),
     carbs: matched?.carbs ?? round(item.carbs * ratio),
     protein: matched?.protein ?? round(item.protein * ratio),
     fat: matched?.fat ?? round(item.fat * ratio),
-    type: matched?.type || existing?.type || "其他",
+    verified: matched?.verified ?? item.verified ?? false,
+    note: matched?.note || item.note || "",
     favorite: existing?.favorite || false,
     lastUsed: new Date().toISOString(),
     useCount: (existing?.useCount || 0) + 1,
@@ -730,12 +879,15 @@ function rememberExercise(item) {
 }
 
 function quickFillFood(name) {
-  const food = allFoods().find((item) => item.name === name);
+  const food = getAllFoods().find((item) => item.name === name);
   if (!food) return;
   $("foodName").value = food.name;
-  $("foodWeight").value = food.defaultWeight || 100;
+  $("foodWeight").value = food.defaultAmount || (food.unitType === "perServing" ? 1 : 100);
   fillFoodMacros(calculateFood(food, $("foodWeight").value));
-  $("foodMatchHint").textContent = `已填入：${food.name}，可直接改重量`;
+  $("foodAmountLabel").firstChild.textContent = food.unitType === "perServing" ? "份数" : "重量 g";
+  $("foodMatchHint").textContent = food.verified
+    ? `已填入：${food.name}，可直接修改${food.unitType === "perServing" ? "份数" : "重量"}`
+    : `已填入：${food.name}，${food.note || "估算值，仅供记录参考"}`;
   setView("food");
   $("foodWeight").focus();
 }
@@ -758,12 +910,18 @@ function toggleFoodFavorite(name) {
     if (!food) return;
     item = {
       name: food.name,
-      defaultWeight: food.defaultWeight || 100,
+      brand: food.brand || "",
+      category: food.category || "其他",
+      unitType: food.unitType || "per100g",
+      servingSize: food.servingSize || "100g",
+      defaultAmount: food.defaultAmount || (food.unitType === "perServing" ? 1 : 100),
+      defaultWeight: food.defaultAmount || (food.unitType === "perServing" ? 1 : 100),
       calories: food.calories,
       carbs: food.carbs,
       protein: food.protein,
       fat: food.fat,
-      type: food.type || "其他",
+      verified: food.verified,
+      note: food.note || "",
       favorite: false,
       lastUsed: new Date().toISOString(),
       useCount: 0,
@@ -864,6 +1022,12 @@ function bindEvents() {
     const quickFood = event.target.closest("[data-quick-food]");
     if (quickFood) {
       quickFillFood(quickFood.dataset.quickFood);
+    }
+
+    const selectedFood = event.target.closest("[data-select-food]");
+    if (selectedFood) {
+      quickFillFood(selectedFood.dataset.selectFood);
+      renderFoodSuggestions();
     }
 
     const favoriteFood = event.target.closest("[data-toggle-food-favorite]");

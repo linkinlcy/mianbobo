@@ -95,7 +95,8 @@
               <input id="foodName" type="text" placeholder="食物名称，例如 鸡胸肉" autocomplete="off" list="foodSuggestions" required />
               <datalist id="foodSuggestions"></datalist>
               <div class="food-match" id="foodMatchHint">输入食物名称和重量后自动计算</div>
-              <label>重量 g<input id="foodWeight" type="number" inputmode="decimal" min="0" step="1" placeholder="例如 150" /></label>
+              <div class="search-results" id="foodSearchResults"></div>
+              <label id="foodAmountLabel">重量 g<input id="foodWeight" type="number" inputmode="decimal" min="0" step="0.1" placeholder="例如 150" /></label>
               <div class="input-grid">
                 <label>碳水 g<input id="foodCarbs" type="number" inputmode="decimal" min="0" step="0.1" /></label>
                 <label>蛋白 g<input id="foodProtein" type="number" inputmode="decimal" min="0" step="0.1" /></label>
@@ -249,6 +250,7 @@
       </div>
     </dialog>
     <div class="toast hidden" id="toast">已复制，可发送给朋友</div>
+    <script src="./food-database.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

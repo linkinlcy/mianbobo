@@ -346,6 +346,32 @@ input {
   font-size: 11px;
 }
 
+.search-results {
+  display: grid;
+  gap: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.food-result {
+  display: grid;
+  gap: 4px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.food-result span,
+.record-note {
+  color: var(--amber);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 input {
   width: 100%;
   padding: 0 12px;
