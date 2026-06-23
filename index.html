@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>减脂记录工具</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">减脂记录</p>
+          <h1 id="pageTitle">今日</h1>
+        </div>
+        <input id="activeDate" class="date-input" type="date" />
+      </header>
+
+      <main>
+        <section id="view-home" class="view active">
+          <div class="target-panel">
+            <div class="panel-head">
+              <div>
+                <p class="section-label">今日碳循环</p>
+                <h2 id="homeDayType">低碳日</h2>
+              </div>
+              <select id="dayTypeSelect" class="select">
+                <option value="low">低碳日</option>
+                <option value="mid">中碳日</option>
+                <option value="high">高碳日</option>
+              </select>
+            </div>
+            <div class="macro-grid" id="homeSummary"></div>
+          </div>
+
+          <div class="quick-grid">
+            <button class="quick-card" data-nav="food" type="button">
+              <span>饮食</span>
+              <strong id="homeFoodTotal">0 kcal</strong>
+            </button>
+            <button class="quick-card" data-nav="training" type="button">
+              <span>训练</span>
+              <strong id="homeTrainingType">未记录</strong>
+            </button>
+          </div>
+
+          <section class="section">
+            <div class="section-title">
+              <h2>今日差距</h2>
+              <span id="homeGapHint"></span>
+            </div>
+            <div class="gap-list" id="homeGaps"></div>
+          </section>
+        </section>
+
+        <section id="view-food" class="view">
+          <section class="section">
+            <div class="section-title">
+              <h2>饮食记录</h2>
+              <span id="foodTotalHint">0 kcal</span>
+            </div>
+            <div class="meal-tabs" id="mealTabs"></div>
+            <form id="foodForm" class="form-card">
+              <input id="foodName" type="text" placeholder="食物名称" autocomplete="off" required />
+              <div class="input-grid">
+                <label>碳水 g<input id="foodCarbs" type="number" inputmode="decimal" min="0" step="0.1" /></label>
+                <label>蛋白 g<input id="foodProtein" type="number" inputmode="decimal" min="0" step="0.1" /></label>
+                <label>脂肪 g<input id="foodFat" type="number" inputmode="decimal" min="0" step="0.1" /></label>
+                <label>热量 kcal<input id="foodCalories" type="number" inputmode="decimal" min="0" step="1" /></label>
+              </div>
+              <button class="primary-btn" type="submit">添加到当前餐</button>
+            </form>
+          </section>
+          <section class="section meal-list" id="mealLists"></section>
+        </section>
+
+        <section id="view-training" class="view">
+          <section class="section">
+            <div class="section-title">
+              <h2>训练记录</h2>
+              <span id="exerciseCountHint">0 个动作</span>
+            </div>
+            <label class="field-label">训练类型
+              <select id="trainingType" class="select wide">
+                <option>胸</option>
+                <option>背</option>
+                <option>腿</option>
+                <option>肩</option>
+                <option>手臂</option>
+                <option>全身</option>
+                <option>有氧</option>
+                <option>休息</option>
+              </select>
+            </label>
+            <form id="exerciseForm" class="form-card">
+              <input id="exerciseName" type="text" placeholder="动作名称" autocomplete="off" required />
+              <div class="input-grid three">
+                <label>重量 kg<input id="exerciseWeight" type="number" inputmode="decimal" min="0" step="0.5" /></label>
+                <label>次数<input id="exerciseReps" type="number" inputmode="numeric" min="0" step="1" /></label>
+                <label>组数<input id="exerciseSets" type="number" inputmode="numeric" min="0" step="1" /></label>
+              </div>
+              <input id="exerciseNote" type="text" placeholder="备注，可选" autocomplete="off" />
+              <button class="primary-btn" type="submit">添加动作</button>
+            </form>
+          </section>
+          <section class="section">
+            <div class="section-title">
+              <h2>当天动作</h2>
+            </div>
+            <div id="exerciseList" class="record-list"></div>
+          </section>
+          <section class="section">
+            <div class="section-title">
+              <h2>历史训练</h2>
+            </div>
+            <div id="trainingHistory" class="history-list"></div>
+          </section>
+        </section>
+
+        <section id="view-dashboard" class="view">
+          <section class="section">
+            <div class="section-title">
+              <h2>最近 7 天</h2>
+              <span id="dashboardRange"></span>
+            </div>
+            <div class="dashboard-grid" id="dashboardCards"></div>
+          </section>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="nav-btn active" data-nav="home" type="button">今日</button>
+        <button class="nav-btn" data-nav="food" type="button">饮食</button>
+        <button class="nav-btn" data-nav="training" type="button">训练</button>
+        <button class="nav-btn" data-nav="dashboard" type="button">看板</button>
+      </nav>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
